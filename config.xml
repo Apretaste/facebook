@@ -1,0 +1,17 @@
+<service>
+	<serviceName>Facebook</serviceName>
+	<serviceDescription>Navegar Facebook</serviceDescription>
+	<creatorEmail>anonimo.com@hispavista.com</creatorEmail>
+	<serviceCategory>Social</serviceCategory>
+	<serviceUsage>
+		<![CDATA[
+			Escriba un nuevo email a {APRETASTE_EMAIL} y en el asunto 
+			ponga la palabra facebook 
+
+			Por ejemplo:
+			Para: {APRETASTE_EMAIL}
+			Asunto: facebook
+			
+		]]>
+	</serviceUsage>
+</service>

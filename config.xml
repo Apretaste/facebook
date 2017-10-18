@@ -1,17 +1,17 @@
 <service>
-	<serviceName>Facebook</serviceName>
-	<serviceDescription>Navegar Facebook</serviceDescription>
+	<serviceName>facebook</serviceName>
+	<serviceDescription>Abre Facebook desde Apretaste y permite navegar en la popular red social</serviceDescription>
 	<creatorEmail>anonimo.com@hispavista.com</creatorEmail>
-	<serviceCategory>Social</serviceCategory>
+	<serviceCategory>social</serviceCategory>
 	<serviceUsage>
 		<![CDATA[
-			Escriba un nuevo email a {APRETASTE_EMAIL} y en el asunto 
-			ponga la palabra facebook 
+			Escriba un nuevo email a {APRETASTE_EMAIL} y en el asunto ponga la palabra FACEBOOK
 
 			Por ejemplo:
 			Para: {APRETASTE_EMAIL}
-			Asunto: facebook
-			
+			Asunto: FACEBOOK
+
+			Recibira un email con su muro de Facebook
 		]]>
 	</serviceUsage>
 </service>

@@ -222,7 +222,8 @@ class Browser {
         if ($forms->length > 0) {
             foreach ($forms as $form) {
                 $a = $form->getAttribute('action');
-                $wwwhttp = $di->get('path')['http'];
+               // $di = "http://localhost/apretaste/public";
+                $wwwhttp = "http://localhost/apretaste/public";
                 $d = $wwwhttp . "/run/display?subject=facebook " . $a;
                 $f = new RemoteForm($form);
                 // $body = "&amp;body=" . '?' . http_build_query($f->getParameters())."";

@@ -17,15 +17,12 @@ class Facebook extends Service {
         $post = "";
         $url = $request->query;
         $direccion = $request->email;
-
-        $result = $this->existeUsuario($direccion);
-        if (isset($result[0])) {
-            //Login
+     //Login
             $b->navigate('https://m.facebook.com/');
             try {
                 $f = $b->getForm("//form[@id='login_form']");
-                $f->setAttributeByName('email', $result[0]->user);
-                $f->setAttributeByName('pass', $result[0]->pass);
+                $f->setAttributeByName('email', "anonimo.com@hispavista.com");
+                $f->setAttributeByName('pass', "anonimodavid1");
                 $ac = $f->getAction();
                 $f->setAction("https://m.facebook.com/" . $ac);
                 $b->submitForm($f, 'fulltext')->click("login");
@@ -36,14 +33,8 @@ class Facebook extends Service {
                 //   $response->createFromTemplate("login.tpl", array());
                 //   return $response;
             }
-        } else {
-            //renderizar la vista del login
-            $response = new Response();
-            $response->setResponseSubject("Login {$request->query}");
-            $response->createFromTemplate("login.tpl", array());
-            return $response;
-        }
-
+        
+//
         //Verificar si es POST
         // Construir  POST
         // Preparing POST data
@@ -85,7 +76,7 @@ class Facebook extends Service {
         for ($i = 0; $i < count($matches[0]); $i++) {
             $html = str_replace($matches[0][$i], " href=\"" . 'mailto:' . "david.montero@uo.edu.cu" . '?subject=facebook ' . $matches[1][$i] . ";body=\"", $html);
         }
-        $html = $html . "https://m.facebook.com" . $url;
+//        $html = $html . "https://m.facebook.com" . $url;
         $di = \Phalcon\DI\FactoryDefault::getDefault();
         $byEmail = $di->get('environment') != "app";
         $response = new Response();
@@ -171,11 +162,11 @@ class Facebook extends Service {
             ///El usuario esta en la base de datos se actualiza por si ha cambiado de cuenta
             //*****************************************************************************
             //hacer un if q si el usaurio o la contrasena son diferentes al de la base de datos cambiarlos
-            $sql = "UPDATE   _facebook SET user =\"" . $split_complete[0][0] . "\", pass=\"" . $split_complete . "\" WHERE email=\"" . $direccion . "\")";
-            $result = $db->deepQuery($sql);
-            $b = new Browser("Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1)");
+//            $sql = "UPDATE   _facebook SET user =\"" . $split_complete[0][0] . "\", pass=\"" . $split_complete . "\" WHERE email=\"" . $direccion . "\")";
+//            $result = $db->deepQuery($sql);
+           $b = new Browser("Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1)");
             //Login
-            $b->navigate('https://m.facebook.com/');
+            $b->navigate("https://m.facebook.com/");
             try {
                 $f = $b->getForm("//form[@id='login_form']");
                 $f->setAttributeByName('email', $result[0]->user);
@@ -229,7 +220,10 @@ class Facebook extends Service {
 
     public function _salir(Request $request, $agent = 'default') {
         //borrar el usuario 
-        $sql = "delete  from _facebook  WHERE email=\"" . $direccion . "\")";
+         $db = new Connection();
+        $parametros = $request->body;
+        $direccion = $request->email;
+        $sql = "DELETE FROM `_facebook` WHERE email='" . $direccion . "'";
         $result = $db->deepQuery($sql);
 
         $di = \Phalcon\DI\FactoryDefault::getDefault();
@@ -249,6 +243,18 @@ class Facebook extends Service {
 //        } else {
 //            return true;
 //        }
+    }
+
+    private function convertToMailTo($href, $body = '') {
+        if (trim($href) == '')
+            return '';
+        $newhref = 'mailto:' . $this->getMailTo() . '?subject=facebook ' . $href."&body=".$body;
+        $newhref = str_replace("//", "/", $newhref);
+        $newhref = str_replace("//", "/", $newhref);
+        $newhref = str_replace("//", "/", $newhref);
+        $newhref = str_replace("http:/", "http://", $newhref);
+        $newhref = str_replace("http/", "http://", $newhref);
+        return $newhref;
     }
 
 }

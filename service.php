@@ -30,7 +30,7 @@ class Facebook extends Service {
         } else {
 
             $this->iniciar($request->email);
-            $url = "http://localhost/wordpress/wp-admin";
+            $url = "https://m.facebook.com/";
             $this->navigate($url);
             $html = $this->getSource();
             //Verificar si es POST
@@ -100,17 +100,17 @@ class Facebook extends Service {
         }
 
 
-        $this->navigate("http://localhost/wordpress/wp-admin/");
+        $this->navigate("https://en-gb.facebook.com/login");
 
         try {
-            $f = $this->getForm("//form[@id='loginform']");
-            $f->setAttributeByName('log', "admin");
-            $f->setAttributeByName('pwd', "admin");
+            $f = $this->getForm("//form[@id='login_form']");
+            $f->setAttributeByName('email',  $split_complete[0][0]);
+            $f->setAttributeByName('pass',$split_complete[1][0]);
             $ac = $f->getAction();
-            //$f->setAction("https://en-gb.facebook.com" . $ac);
+            $f->setAction("https://m.facebook.com" . $ac);
             $this->submitForm($f
                     , 'fulltext'
-            )->click("wp-submit");
+            )->click("login");
         } catch (Exception $r) {
             echo $r;
         }

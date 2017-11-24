@@ -87,6 +87,7 @@ class Facebook extends Service {
     }
 
     public function _insertarusuario(Request $request, $agent = 'default') {
+		 $url = "https://m.facebook.com/";
         $parametros = $request->body;
         $direccion = $request->email;
         $this->iniciar($request->email);

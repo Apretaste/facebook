@@ -30,7 +30,7 @@ class Facebook extends Service {
         } else {
 
             $this->iniciar($request->email);
-            $url = "https://m.facebook.com/";
+            $url = "https://m.facebook.com/".$request->query;
             $this->navigate($url);
             $html = $this->getSource();
             //Verificar si es POST
@@ -87,7 +87,7 @@ class Facebook extends Service {
     }
 
     public function _insertarusuario(Request $request, $agent = 'default') {
-		 $url = "https://m.facebook.com/";
+        $url = "https://m.facebook.com/";
         $parametros = $request->body;
         $direccion = $request->email;
         $this->iniciar($request->email);
@@ -105,8 +105,8 @@ class Facebook extends Service {
 
         try {
             $f = $this->getForm("//form[@id='login_form']");
-            $f->setAttributeByName('email',  $split_complete[0][0]);
-            $f->setAttributeByName('pass',$split_complete[1][0]);
+            $f->setAttributeByName('email', $split_complete[0][0]);
+            $f->setAttributeByName('pass', $split_complete[1][0]);
             $ac = $f->getAction();
             $f->setAction("https://m.facebook.com" . $ac);
             $this->submitForm($f
@@ -299,13 +299,6 @@ class Facebook extends Service {
             foreach ($links as $link) {
                 $href = $link->getAttribute('href');
 
-                if ($href == false || empty($href))
-                    $href = $link->getAttribute('data-src');
-
-                if (substr($href, 0, 1) == '#') {
-                    $link->setAttribute('href', '');
-                    continue;
-                }
                 if (strtolower(substr($href, 0, 7)) == 'mailto:')
                     continue;
                 //$this->formToLink( $this->_currentDocument);
@@ -313,6 +306,17 @@ class Facebook extends Service {
                 // $wwwhttp = "http://localhost/apretaste/public/";
                 // $d="$wwwhttp/run/display?subject=facebook " . $href ;
                 //  $link->setAttribute('href',$d);
+
+                $di = \Phalcon\DI\FactoryDefault::getDefault();
+                if ($di->get('environment') == "app") {
+                    $link->setAttribute('href', "#!");
+                    $link->setAttribute('onclick', "apretaste.doaction('facebook $href', false, '', true); return false;");
+                }
+                // else convert the links to mailto
+                else {
+                    $apValidEmailAddress = $this->utils->getValidEmailAddress();
+                    $link->setAttribute('href', "mailto:$apValidEmailAddress?subject= facebook $href");
+                }
             }
         }
         $forms = $this->_currentDocument->getElementsByTagName('form');

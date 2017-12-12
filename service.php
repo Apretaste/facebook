@@ -2,8 +2,8 @@
 
 include 'RemoteForm.php';
 
-class Facebook extends Service {
-
+class Facebook extends Service
+{
 	private $ch;
 	private $debug = true;
 	private $_currentDocument = null;
@@ -19,68 +19,73 @@ class Facebook extends Service {
 	{
 		if ( ! file_exists(sys_get_temp_dir() . DIRECTORY_SEPARATOR . $request->email . '.cookie'))
 		{
-			$di = \Phalcon\DI\FactoryDefault::getDefault();
-			$byEmail = $di->get('environment') != "app";
 			$response = new Response();
 			$response->setResponseSubject("Login en Facebook");
-			$response->createFromTemplate("login.tpl", array());
+			$response->createFromTemplate("login.tpl", []);
 			return $response;
 		}
 		else
 		{
-
 			$this->iniciar($request->email);
-			$url = "https://m.facebook.com" . $request->query;
-			$this->navigate($url);
-			$html = $this->getSource();
-			//Verificar si es POST
-			// Construir  POST
-			// Preparing POST data
-			$paramsbody = trim($request->body);
-			$p = strpos($paramsbody, "\n");
-			//Obtenet la cadena q contiene los parametros
-			if ($p !== false)
-				$paramsbody = substr($paramsbody, $p);
-			if (strpos($paramsbody, '=') === false)
-				$paramsbody = false;
-			else
-				$paramsbody = trim($paramsbody);
-			if ($paramsbody !== false) {
-				$post = $paramsbody;
-				if ($post != '') {
-					$arr = explode("&", $post);
-					$post = array();
-					foreach ($arr as $v) {
-						$arr2 = explode('=', $v);
-						if (!isset($arr2[1]))
-							$arr2[1] = '';
-						$post[$arr2[0]] = $arr2[1];
-					}
-				} else
-					$post = array();
-				$this->navigatePOST($url, $post);
+			$argument = $request->query;
+
+			$pos1 = strpos($argument, "{");
+			$sub = substr($argument, $pos1); //eliminar la url
+			$pos2 = strpos($sub, "}");
+			$url = trim(substr($argument, 0, $pos1)); //url
+/// if(!$url==""){
+			$url = "https://m.facebook.com" . $url;
+//   }
+			if (!$pos1) {
+				$url = "https://m.facebook.com" . $request->query;
 			}
-			else {
-				//eliminar parametros
-				//$keys = array("refid","icm");
-				//$url= $this->remove_url_query_args($url,$keys);
-				$this->navigate($url);
+			$para = (array) json_decode(trim(substr($sub, 0, $pos2 + 1))); //parametros
+			$pos3 = strpos($argument, "}");
+			$parametros = substr($argument, $pos3 + 1); //resto
+			foreach ($para as $p => $s) {
+				if ($s == "_parametro_") {
+					$para[$p] = $parametros;
+				}
 			}
 
-			// check if the response is for app or email
-			$di = \Phalcon\DI\FactoryDefault::getDefault();
-			$byEmail = $di->get('environment') != "app";
+			if (count($para) != 0) $this->navigatePOST($url, $para);
+			else $this->navigate($url);
+
+			$html = $this->getSource();
+			$arrayIma = $this->saveImg($html);
+			$html = $this->getSource();
+
+			// clean HTML
+			$html = str_replace("&Acirc;", "", $html);
+			$html = str_replace("&acirc;", "", $html);
+			$html = str_replace("&#128;", "", $html);
+			$html = str_replace("&#142;", "", $html);
+			$html = str_replace("&Atilde;&iexcl;", "&aacute;", $html);
+			$html = str_replace("&Atilde;&copy;", "&eacute;", $html);
+			$html = str_replace("&Atilde;&shy;", "&iacute;", $html);
+			$html = str_replace("&Atilde;&sup3;", "&oacute;", $html);
+//			$html = str_replace("UUU", "&uacute;", $html);
+			$html = str_replace("&Atilde;&plusmn;", "&ntilde;", $html);
+
+			// send data to the view
 			$response = new Response();
-			$response->setResponseSubject("Su web {$request->query}");
-			$response->createFromTemplate("basic.tpl", array("body" => $html, "url" => $url, "byEmail" => $byEmail));
+			$response->setResponseSubject("Facebook ");
+			$response->createFromTemplate("basic.tpl", ["body"=>$html, "url"=>$url], $arrayIma);
 			return $response;
 		}
 	}
 
+	public function _salir(Request $request, $agent = 'default')
+	{
+		unlink(sys_get_temp_dir() . DIRECTORY_SEPARATOR . $request->email . '.cookie');
+		$response = new Response();
+		$response->setResponseSubject("Login en Facebook");
+		$response->createFromTemplate("login.tpl", array());
+		return $response;
+	}
+
 	public function _login(Request $request, $agent = 'default')
 	{
-		$di = \Phalcon\DI\FactoryDefault::getDefault();
-		$byEmail = $di->get('environment') != "app";
 		$response = new Response();
 		$response->setResponseSubject("Login en Facebook");
 		$response->createFromTemplate("login.tpl", array());
@@ -90,57 +95,42 @@ class Facebook extends Service {
 	public function _insertarusuario(Request $request, $agent = 'default')
 	{
 		$url = "https://m.facebook.com/";
-		$parametros = $request->body;
+
 		$direccion = $request->email;
 		$this->iniciar($request->email);
-		$split_complete = array();
-		/// if ($parametros != '') {
-		$split_parameters = explode('&', trim($parametros));
-		for ($i = 0; $i < count($split_parameters); $i++) {
-			$final_split = explode('=', $split_parameters[$i]);
-			$split_complete[$i][0] = $final_split[1];
-			$split_complete[$i][1] = $final_split[0];
-		}
+		$argument = explode(" ", $request->query);
 
-		$this->navigate("https://en-gb.facebook.com/login");
+		$this->navigateLogin("https://en-gb.facebook.com/login");
 
 		try {
 			$f = $this->getForm("//form[@id='login_form']");
-			$f->setAttributeByName('email', $split_complete[0][0]);
-			$f->setAttributeByName('pass', $split_complete[1][0]);
+			$f->setAttributeByName('email', $argument[0]);
+			$f->setAttributeByName('pass', $argument[1]);
 			$ac = $f->getAction();
 			$f->setAction("https://m.facebook.com" . $ac);
-			$this->submitForm($f
-					, 'fulltext'
-			)->click("login");
-		} catch (Exception $r) {
-			echo $r;
-		}
+			$this->submitForm($f, 'fulltext')->click("login");
+		} catch (Exception $r) {}
+
+		$this->navigate($url);
 		$html = $this->getSource();
-		$di = \Phalcon\DI\FactoryDefault::getDefault();
-		$byEmail = $di->get('environment') != "app";
+
+		// send info to the view
 		$response = new Response();
 		$response->setResponseSubject("Su web {$request->query}");
-		$response->createFromTemplate("basic.tpl", array("body" => $html, "url" => $url, "byEmail" => $byEmail));
+		$response->createFromTemplate("basic.tpl", ["body" => $html, "url" => $url]);
 		return $response;
 	}
 
-	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	/////////////////////////////Funciones necesarias para el CURL//////////////////////////////////////////////////
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////Funciones necesarias para el CURL//////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	public function iniciar($cookie_name)
 	{
-		// initialize curl handle
 		$this->ch = curl_init();
-		//set various options
-		//set error in case http return code bigger than 300
 		curl_setopt($this->ch, CURLOPT_FAILONERROR, true);
-		// use gzip if possible
+		curl_setopt($this->ch, CURLOPT_ENCODING, "UTF-8");
 		curl_setopt($this->ch, CURLOPT_ENCODING, 'gzip, deflate');
-		// do not veryfy ssl
-		// this is important for windows
-		// as well for being able to access pages with non valid cert
 		curl_setopt($this->ch, CURLOPT_SSL_VERIFYPEER, 0);
 		curl_setopt($this->ch, CURLOPT_USERAGENT, "Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1)");
 		curl_setopt($this->ch, CURLOPT_COOKIEJAR, sys_get_temp_dir() . DIRECTORY_SEPARATOR . $cookie_name . '.cookie');
@@ -150,6 +140,7 @@ class Facebook extends Service {
 	/**
 	 * Send post data to target URL
 	 * return data returned from url or false if error occured
+	 *
 	 * @param string url
 	 * @param mixed post data (assoc array ie. $foo['post_var_name'] = $value or as string like var=val1&var2=val2)
 	 * @param string ip address to bind (default null)
@@ -157,27 +148,21 @@ class Facebook extends Service {
 	 * @return string data
 	 * @access public
 	 */
-	function send_post_data($url, $postdata, $ip = null, $timeout = 10)
-	{
-		//set various curl options first
-		// set url to post to
+	function send_post_data($url, $postdata, $ip = null, $timeout = 10) {
 		curl_setopt($this->ch, CURLOPT_URL, $url);
-		// return into a variable rather than displaying it
 		curl_setopt($this->ch, CURLOPT_RETURNTRANSFER, true);
-		//bind to specific ip address if it is sent trough arguments
+
 		if ($ip) {
 			if ($this->debug) {
 				echo "Binding to ip $ip\n";
 			}
 			curl_setopt($this->ch, CURLOPT_INTERFACE, $ip);
 		}
-		//set curl function timeout to $timeout
+
 		curl_setopt($this->ch, CURLOPT_TIMEOUT, $timeout);
-		//set method to post
 		curl_setopt($this->ch, CURLOPT_POST, true);
-		// set post string
 		curl_setopt($this->ch, CURLOPT_POSTFIELDS, $postdata);
-		//and finally send curl request
+
 		$result = $this->curl_exec_redir($this->ch);
 		if (curl_errno($this->ch)) {
 			if ($this->debug) {
@@ -202,36 +187,19 @@ class Facebook extends Service {
 	 */
 	function fetch_url($url, $ip = null, $timeout = 5)
 	{
-		// set url to post to
 		curl_setopt($this->ch, CURLOPT_URL, $url);
-		//set method to get
 		curl_setopt($this->ch, CURLOPT_HTTPGET, true);
-		// return into a variable rather than displaying it
 		curl_setopt($this->ch, CURLOPT_RETURNTRANSFER, true);
-		//bind to specific ip address if it is sent trough arguments
-		if ($ip) {
-			if ($this->debug) {
-				echo "Binding to ip $ip\n";
-			}
-			curl_setopt($this->ch, CURLOPT_INTERFACE, $ip);
-		}
-		//set curl function timeout to $timeout
+		if ($ip) curl_setopt($this->ch, CURLOPT_INTERFACE, $ip);
 		curl_setopt($this->ch, CURLOPT_TIMEOUT, $timeout);
-		//and finally send curl request
+
 		$result = $this->curl_exec_redir($this->ch);
-		if (curl_errno($this->ch)) {
-			if ($this->debug) {
-				echo "Error Occured in Curl\n";
-				echo "Error number: " . curl_errno($this->ch) . "\n";
-				echo "Error message: " . curl_error($this->ch) . "\n";
-			}
-			return false;
-		} else {
-			return $result;
-		}
+		if (curl_errno($this->ch)) return false;
+		else return $result;
 	}
 
-	function curl_exec_redir($ch) {
+	function curl_exec_redir($ch)
+	{
 		static $curl_loops = 0;
 		static $curl_max_loops = 20;
 		if ($curl_loops++ >= $curl_max_loops) {
@@ -247,18 +215,18 @@ class Facebook extends Service {
 		list($header, $data) = explode("\n\n", $data, 2);
 		$http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 
-		//echo "*** Got HTTP code: $http_code ***\n";
-		//echo "**  Got headers: \n$header\n\n";
+//echo "*** Got HTTP code: $http_code ***\n";
+//echo "**  Got headers: \n$header\n\n";
 
 		if ($http_code == 301 || $http_code == 302) {
-			// If we're redirected, we should revert to GET
+// If we're redirected, we should revert to GET
 			curl_setopt($ch, CURLOPT_HTTPGET, true);
 
 			$matches = array();
 			preg_match('/Location:\s*(.*?)(\n|$)/i', $header, $matches);
 			$url = @parse_url(trim($matches[1]));
 			if (!$url) {
-				//couldn't process the url to redirect to
+//couldn't process the url to redirect to
 				$curl_loops = 0;
 				return $data;
 			}
@@ -270,7 +238,7 @@ class Facebook extends Service {
 			if (empty($url['path']))
 				$url['path'] = $last_url['path'];
 			$new_url = $url['scheme'] . '://' . $url['host'] . $url['path'] . (!empty($url['query']) ? '?' . $url['query'] : '');
-			//echo "Being redirected to $new_url\n";
+//echo "Being redirected to $new_url\n";
 			curl_setopt($ch, CURLOPT_URL, $new_url);
 			return $this->curl_exec_redir($ch);
 		} else {
@@ -279,9 +247,9 @@ class Facebook extends Service {
 		}
 	}
 
-	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	/////////////////////////////A partir de aqui maneja el arbol dom del HTML//////////////////////////////////////////////////
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////A partir de aqui maneja el arbol dom del HTML//////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	/**
 	 * Updates the current document handlers based on the given data
@@ -291,76 +259,169 @@ class Facebook extends Service {
 	private function _handleResponse($data, $url)
 	{
 		// We must have fetched a URL
-		if (!$url) {
-			throw new \Exception("Could not load url: " . $url);
-		}
+		if (!$url) throw new \Exception("Could not load url: " . $url);
 
 		// Attempt to parse the document
-		$this->_currentDocument = new \DOMDocument();
+		$this->_currentDocument = new \DOMDocument('1.0', 'UTF-8');
 		if (!( @$this->_currentDocument->loadHTML($data) )) {
 			throw new \Exception("Malformed HTML server response from url: " . $url);
 		}
 
-//		if ($links->length > 0) {
-//			foreach ($links as $link) {
-//				$href = $link->getAttribute('href');
-//				//$href=urlencode()
-//				if (strtolower(substr($href, 0, 7)) == 'mailto:')
-//					continue;
-//				//$this->formToLink( $this->_currentDocument);
-//				// $di = \Phalcon\DI\FactoryDefault::getDefault();
-//				// $wwwhttp = "http://localhost/apretaste/public/";
-//				// $d="$wwwhttp/run/display?subject=facebook " . $href ;
-//				//  $link->setAttribute('href',$d);
-//
-//				$di = \Phalcon\DI\FactoryDefault::getDefault();
-//				if ($di->get('environment') == "app") {
-//					$link->setAttribute('href', "#!");
-//					$link->setAttribute('onclick', "apretaste.doaction('facebook $href', false, '', true); return false;");
-//				}
-//				// else convert the links to mailto
-//				else {
-//					$apValidEmailAddress = $this->utils->getValidEmailAddress();
-//					$link->setAttribute('href', "mailto:$apValidEmailAddress?subject= facebook $href");
-//				}
-//			}
-//		}
+		// include links plugin
+		$di = \Phalcon\DI\FactoryDefault::getDefault();
+		$wwwroot = $di->get('path')['root'];
+		include "$wwwroot/app/plugins/function.link.php";
+
 		$result = "";
 		preg_match_all('/<a[^>]+href=([\'"])(?<href>.+?)\1[^>]*>/i', $this->_currentDocument->saveHTML(), $result);
 		$links = $this->_currentDocument->getElementsByTagName('a');
 		if (!empty($result)) {
-			# Found a link.
+			// Found a link.
 			for ($i = 0; $i < count($result['href']); $i++) {
-				$di = \Phalcon\DI\FactoryDefault::getDefault();
 				$href = $result['href'][$i];
-				$href=urlencode($href);
-				if ($di->get('environment') == "app") {
-					$links[$i]->setAttribute('href', "#!");
-					$links[$i]->setAttribute('onclick', "apretaste.doaction('facebook '.$href', false, '', true); return false;");
-				}
-				// else convert the links to mailto
-				else {
-					$apValidEmailAddress = $this->utils->getValidEmailAddress();
-					$links[$i]->setAttribute('href', "mailto:$apValidEmailAddress?subject= facebook $href");
-				}
+				$href = urlencode($href);
+
+				$params = ["href"=>"FACEBOOK $href", "caption"=>"Click"];
+				$aplink = smarty_function_link($params, null);
+				$href = php::substring($aplink, "href='", "' onclick");
+				$onclick = php::substring($aplink, "onclick='", "' >");
+				$links->item($i)->setAttribute('href', $href);
+				$links->item($i)->setAttribute('onclick', $onclick);
 			}
 		}
 
 		$forms = $this->_currentDocument->getElementsByTagName('form');
+
 		if ($forms->length > 0) {
 			foreach ($forms as $form) {
-				$a = $form->getAttribute('action');
-				$wwwhttp = "http://localhost/apretaste/public/";
-				$d = "$wwwhttp/run/display?subject=facebook " . $a;
+				$action = $form->getAttribute('action');
 				$f = new RemoteForm($form);
-				//$body = "&amp;body" . '?' . http_build_query($f->getParameters());
-				$form->setAttribute('action', "mailto:david.montero@uo.edu.cu subject=facebook " . $a);
+				$inputs = $form->getElementsByTagName('input');
+				foreach ($inputs as $input) {
+					if ($input->getAttribute('type') == "submit") {
+						$inputValue = $input->getAttribute('value');
+						$parametros = $f->getParameters();
+						$asuntoA = array();
+						$generearInput = "";
+						$hidenInput = $this->getHidenInput($form);
+
+						foreach ($parametros as $parametro => $value) {
+							if (isset($hidenInput[$parametro])) {
+								// echo $parametro;
+							}
+
+							if ($value != "" || isset($hidenInput[$parametro])) {
+								$asuntoA[$parametro] = $value;
+							}
+							if ($value == "" && !isset($hidenInput[$parametro])) {
+								$asuntoA[$parametro] = "_parametro_";
+								$generearInput = $generearInput . $parametro;
+							}
+						}
+						$asuntoA[$input->getAttribute('name')] = $input->getAttribute('value');
+						$asunto = json_encode($asuntoA);
+						$asunto = urlencode($action) . "  " . $asunto;
+						$btn = $this->_currentDocument->createElement("a");		// Create a <button> element
+						$href = $this->_currentDocument->createAttribute("href");
+						$btn->appendChild($href);
+						$t = $this->_currentDocument->createTextNode($input->getAttribute('value'));
+						$btn->appendChild($t);
+
+						$send = "apretaste.doaction('FACEBOOK " . $asunto . "', true, '" . $generearInput . "', true); return false;";
+						$btn->setAttribute('onclick', $send);
+
+						$input->parentNode->appendChild($btn);
+						$input->parentNode->removeChild($input);
+					}
+				}
 			}
 		}
+
+		// remove all comments
+		$xpath = new DOMXPath($this->_currentDocument);
+		foreach ($xpath->query('//comment()') as $comment) {
+			$comment->parentNode->removeChild($comment);
+		}
+
+		while (($r = $this->_currentDocument->getElementsByTagName("script")) && $r->length) {
+			$r->item(0)->parentNode->removeChild($r->item(0));
+		}
+
+		// remove outside css
+		while (($r = $this->_currentDocument->getElementsByTagName("link")) && $r->length) {
+			$r->item(0)->parentNode->removeChild($r->item(0));
+		}
+/*
+		while (($r = $this->_currentDocument->getElementsByTagName("style")) && $r->length) {
+			$r->item(0)->parentNode->removeChild($r->item(0));
+		}
+*/
+		while (($r = $this->_currentDocument->getElementsByTagName("iframe")) && $r->length) {
+			$r->item(0)->parentNode->removeChild($r->item(0));
+		}
+/*
+		// remove form elements
+		while (($r = $this->_currentDocument->getElementsByTagName("form")) && $r->length) {
+			$r->item(0)->parentNode->removeChild($r->item(0));
+		}
+*/
+		// remove <meta> tags
+		while (($r = $this->_currentDocument->getElementsByTagName("meta")) && $r->length) {
+			$r->item(0)->parentNode->removeChild($r->item(0));
+		}
+
+		while (($r = $this->_currentDocument->getElementsByTagName("input")) && $r->length) {
+			$r->item(0)->parentNode->removeChild($r->item(0));
+		}
+
+		while (($r = $this->_currentDocument->getElementsByTagName("select")) && $r->length) {
+			$r->item(0)->parentNode->removeChild($r->item(0));
+		}
+
+		while (($r = $this->_currentDocument->getElementsByTagName("textarea")) && $r->length) {
+			$r->item(0)->parentNode->removeChild($r->item(0));
+		}
+
+		$body = $xpath->query('//body')->item(0);
+		$this->_currentDocument->saveXml($body);
+
+		while (($r = $this->_currentDocument->getElementsByTagName("")) && $r->length) {
+			$r->item(0)->parentNode->removeAttribute('class');
+		}
+
 		$this->_currentDocument->saveHTML();
 		$this->_rawdata = $data;
 
 		// Generte a XPath navigator
+		$this->_navigator = new \DOMXpath($this->_currentDocument);
+	}
+
+	private function getHidenInput($form) {
+		$hiden = array();
+		$inputsHiden = $form->getElementsByTagName('input');
+		foreach ($inputsHiden as $i) {
+			if ($i->getAttribute('type') == "hidden" && $i->getAttribute('value') == "") {
+				$hiden[$i->getAttribute('name')] = " ";
+			}
+		}
+		return $hiden;
+	}
+
+	private function _handleResponseLogin($data, $url) {
+		// We must have fetched a URL
+		if (!$url) {
+			throw new \Exception("Could not load url: " . $url);
+		}
+
+		$this->_currentDocument = new \DOMDocument();
+		if (!( @$this->_currentDocument->loadHTML($data) )) {
+			throw new \Exception("Malformed HTML server response from url: " . $url);
+		}
+// remove all comments
+
+
+		$this->_currentDocument->saveHTML();
+		$this->_rawdata = $data;
 		$this->_navigator = new \DOMXpath($this->_currentDocument);
 	}
 
@@ -369,15 +430,14 @@ class Facebook extends Service {
 	 * @param The $formMatch form to utilize (XPath or DOMElement)
 	 * @return RemoteForm The matched form
 	 */
-	public function getForm($formMatch)
-	{
+	public function getForm($formMatch) {
 		if ($formMatch instanceof \DOMElement) {
 			$form = $formMatch;
 		} else if (is_string($formMatch)) {
-			// Find the element
+// Find the element
 			$form = $this->_navigator->query($formMatch);
 
-			// No element found
+// No element found
 			if ($form->length != 1) {
 				throw new \Exception($form->length . " forms found matching: " . $formMatch);
 			}
@@ -387,7 +447,7 @@ class Facebook extends Service {
 			throw new \Exception("Illegal expression given to getForm");
 		}
 
-		// New RemoteForm
+// New RemoteForm
 		return new RemoteForm($form);
 	}
 
@@ -401,9 +461,8 @@ class Facebook extends Service {
 	 * @param String $submitButtonName The submit button to click
 	 * @return Browser Returns this browser object for chaining
 	 */
-	public function submitForm(RemoteForm $form, $submitButtonName = '')
-	{
-		// Find the button, and set the given attribute if we're pressing a button
+	public function submitForm(RemoteForm $form, $submitButtonName = '') {
+// Find the button, and set the given attribute if we're pressing a button
 		if (!empty($submitButtonName)) {
 			$button = $this->_navigator->query("//input[@type='submit'][@name='" . str_replace("'", "\'", $submitButtonName) . "']");
 			if ($button->length === 1) {
@@ -438,7 +497,7 @@ class Facebook extends Service {
 				break;
 		}
 
-		// Chain
+// Chain
 		return $this;
 	}
 
@@ -446,8 +505,7 @@ class Facebook extends Service {
 	 * Returns the source of the current page
 	 * @return String The current HTML
 	 */
-	public function getSource()
-	{
+	public function getSource() {
 		return $this->_currentDocument->saveHTML();
 	}
 
@@ -456,28 +514,29 @@ class Facebook extends Service {
 	 * @param String $url The url to navigate to, may be relative
 	 * @return Browser Returns this browser object for chaining
 	 */
-	public function navigate($url)
-	{
+	public function navigate($url) {
 		/**
 		 * Resolve the URL
 		 */
-		// $url = $this -> _resolveUrl ( $url );
+// $url = $this -> _resolveUrl ( $url );
 
 		/**
 		 * After resolving, it must be absolute, otherwise we're stuck...
 		 */
-		//   if ( !strpos ( $url, 'http' ) === 0 ) {
-		//	  throw new \Exception ( "Unknown protocol used in navigation url: " . $url );
-		//  }
+//   if ( !strpos ( $url, 'http' ) === 0 ) {
+//	  throw new \Exception ( "Unknown protocol used in navigation url: " . $url );
+//  }
 
 		/**
 		 * Finally, fetch the URL, and handle the response
 		 */
 		$this->_handleResponse($this->fetch_url($url), $url);
 
-		/**
-		 * And make us chainable
-		 */
+		return $this;
+	}
+
+	public function navigateLogin($url) {
+		$this->_handleResponseLogin($this->fetch_url($url), $url);
 		return $this;
 	}
 
@@ -486,8 +545,7 @@ class Facebook extends Service {
 	 * @param String $url The url to navigate to, may be relative
 	 * @return Browser Returns this browser object for chaining
 	 */
-	public function navigatePOST($url, $post)
-	{
+	public function navigatePOST($url, $post) {
 		/**
 		 * After resolving, it must be absolute, otherwise we're stuck...
 		 */
@@ -515,28 +573,27 @@ class Facebook extends Service {
 	 * @param String $link XPath or link/submit-button title
 	 * @return Browser Returns this browser object for chaining
 	 */
-	public function click($link)
-	{
-		// Attempt direct query
+	public function click($link) {
+// Attempt direct query
 		$a = @$this->_navigator->query($link);
 		if (!$a || $a->length != 1) {
-			// Attempt exact title match
+// Attempt exact title match
 			$link_as_xpath = "//a[text() = '" . str_replace("'", "\'", $link) . "'] | //input[@type = 'submit'][@value = '" . str_replace("'", "\'", $link) . "']";
 			$a = @$this->_navigator->query($link_as_xpath);
 
 			if (!$a) {
-				// This would mean the initial $link was an XPath expression
-				// Redo it without error suppression
+// This would mean the initial $link was an XPath expression
+// Redo it without error suppression
 				$this->_navigator->query($link);
 				throw new \Exception("Failed to find matches for selector: " . $link);
 			}
 
 			if ($a->length != 1) {
-				// Attempt title contains match
+// Attempt title contains match
 				$link_as_xpath_contains = "//a[contains(.,'" . str_replace("'", "\'", $link) . "')]";
 				$a = $this->_navigator->query($link_as_xpath_contains);
 
-				// Still no match, throw error
+// Still no match, throw error
 				if ($a->length != 1) {
 					throw new \Exception(intval($a->length) . " links found matching: " . $link);
 				}
@@ -546,7 +603,7 @@ class Facebook extends Service {
 			$link = $link_as_xpath;
 		}
 
-		// Fetch the element
+// Fetch the element
 		$a = $a->item(0);
 
 		/**
@@ -563,7 +620,7 @@ class Facebook extends Service {
 			}
 
 			$this->submitForm($this->getForm($form), $a->getAttribute('name'));
-			// Chain
+// Chain
 			return $this;
 		}
 
@@ -572,7 +629,112 @@ class Facebook extends Service {
 		 */
 		$this->navigate($this->_resolveUrl($a->getAttribute('href')));
 
-		// Chain
+// Chain
 		return $this;
+	}
+
+//////////////////////Imagenes/////////////////////////////////////////////////////
+
+	/**
+	 * use file_put_contents() save image directively
+	 * @param Integer $page
+	 */
+	function saveImg($html)
+	{
+		// Attempt to parse the document
+		$arrayImagenes = array();
+
+		$temp = $this->utils->getTempDir();
+		$urlList = $this->getImgUrl($html);
+		$this->_currentDocument = new \DOMDocument();
+		if (!( @$this->_currentDocument->loadHTML($html) )) {
+			throw new \Exception("Malformed HTML server response from url: " . $url);
+		}
+
+		// include image plugin
+		$di = \Phalcon\DI\FactoryDefault::getDefault();
+		$wwwroot = $di->get('path')['root'];
+		include "$wwwroot/app/plugins/function.img.php";
+
+		$i = 0;
+		$links = $this->_currentDocument->getElementsByTagName('img');
+		foreach ($urlList as $url) {
+			// get image path
+			$name = $this->utils->generateRandomHash();
+			$ext = substr(pathinfo($url, PATHINFO_EXTENSION), 0, 3);
+			$file =  "$temp$name.$ext";
+			$url = trim(str_replace("&amp;", "&", $url));
+
+			// download the image
+			$this->download($url, $file);
+
+			// add to the array of images for the view
+			$arrayImagenes[$i] = $file;
+
+			// get the src for the image into the template
+			$img = smarty_function_img(["src"=>$file], null);
+			$src = php::substring($img, "src='", "' alt");
+			$links->item($i)->setAttribute('src',$src);
+			++$i;
+		}
+
+		$this->_currentDocument->saveHTML();
+		$this->_rawdata = $html;
+		//print_r($arrayImagenes);
+		// Generte a XPath navigator
+		$this->_navigator = new \DOMXpath($this->_currentDocument);
+		return $arrayImagenes;
+	}
+
+
+	/**
+	 * get images' url from a html file
+	 * @param String $html
+	 * @return Array
+	 */
+	function getImgUrl($html) {
+		$pattern = '/<img src="(.*)" .*\/>/U';
+		preg_match_all('/<img.+src=[\'"]([^\'"]+)[\'"][^\/>]*>/Ui', $html, $matches);
+		return $matches[1];
+	}
+
+	/**
+	 * use curl get file
+	 * @param String $url
+	 * @return Recourse
+	 */
+	function curlGet($url)
+	{
+		$curl = curl_init();
+		curl_setopt($curl, CURLOPT_HEADER, 0);
+		curl_setopt($curl, CURLOPT_URL, $url);
+		curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
+		curl_setopt($curl, CURLOPT_DNS_CACHE_TIMEOUT, 1024); // default expire time is 120s
+
+		$result = curl_exec($curl);
+		$info = curl_getinfo($curl);
+		if ($info['http_code'] == 301)
+			if (isset($info['redirect_url']) && $info['redirect_url'] != $url)
+				return $this->curlGet($info['redirect_url']);
+		curl_close($curl);
+
+		return $result;
+	}
+
+	function download($url, $file)
+	{
+		$file = fopen($file, "w");
+
+		$ch = curl_init();
+		curl_setopt($ch, CURLOPT_URL, $url);
+		curl_setopt($ch, CURLOPT_HEADER, false);
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+		curl_setopt($ch, CURLOPT_FOLLOWLOCATION, TRUE);
+		curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 0);
+		curl_setopt($ch, CURLOPT_TIMEOUT, 0);
+		curl_setopt($ch, CURLOPT_FILE, $file);
+		curl_exec($ch);
+		curl_close($ch);
+		fclose($file);
 	}
 }

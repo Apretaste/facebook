@@ -65,60 +65,7 @@ class RemoteForm {
     }
 
     private function _setAttributeByString($fieldName, $fieldValue) {
-        $fieldName = trim($fieldName);
-        $firstIndex = strpos($fieldName, '[');
-
-        if ($firstIndex === false) {
-            $firstIndex = strlen($fieldName);
-        }
-
-        $firstName = substr($fieldName, 0, $firstIndex);
-        if ($firstName === '') {
-            return $this;
-        }
-
-        if ($firstName === $fieldName) {
-            $this->_attributes[$fieldName] = $fieldValue;
-            // Chain
-            return $this;
-        }
-
-        $matches = array();
-        preg_match_all("/\[([^\]]+)\]/", $fieldName, $matches, PREG_PATTERN_ORDER);
-
-        if (empty($matches[1])) {
-            $this->_attributes[$firstName] = $fieldValue;
-            return $this;
-        }
-
-        $matches = $matches[1];
-
-        if (!array_key_exists($firstName, $this->_attributes)) {
-            $this->_attributes[$firstName] = array();
-        }
-
-
-        $at = &$this->_attributes[$firstName];
-        for ($i = 0; $i < count($matches); $i++) {
-            $name = $matches[$i];
-            if (trim($name) === '') {
-                $at[] = array();
-                $at = &$at[array_search(array(), $at, true)];
-            } else {
-                if (!array_key_exists($name, $at)) {
-                    $at[$name] = array();
-                }
-                $at = &$at[$name];
-            }
-
-            // Last loop step, set the value
-            if ($i + 1 === count($matches)) {
-                $at = $fieldValue;
-            }
-        }
-
-
-        return $this;
+      $this->_attributes[$fieldName] = $fieldValue;
     }
 
     public function getParameters() {

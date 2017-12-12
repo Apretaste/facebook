@@ -14,9 +14,7 @@
 {space15}
 
 <center>
-	{button href="FACEBOOK insertarusuario" desc="Escriba su telefono o email|Escriba su contrasena de facebook" caption="Iniciar sesion" popup="true"}
-
+	{button href="FACEBOOK PAGINA" desc="Escriba su telefono o email|Escriba su contrasena de facebook" caption="Iniciar sesion" popup="true"}
 	{space10}
-
 	<small><a href="https://m.facebook.com/reg" target="_blank">Create una cuenta desde el WiFi</a></small>
 </center>

@@ -113,10 +113,8 @@ class Facebook extends Service {
 	/**
 	 * insertar usuario
 	 */
-	public function _insertarusuario(Request $request, $agent = 'default')
+	public function _pagina(Request $request, $agent = 'default')
 	{
-		$url = "https://m.facebook.com/";
-
 		$direccion = $request->email;
 		$this->iniciar($request->email);
 		$argument = explode(" ", $request->query);
@@ -130,17 +128,16 @@ class Facebook extends Service {
 			$ac = $f->getAction();
 			$f->setAction("https://m.facebook.com" . $ac);
 			$this->submitForm($f, 'fulltext')->click("login");
-		} catch (Exception $r) {
+		} catch (Exception $r) {}
 
-		}
-
-		$this->navigate($url);
+		// get HTML page
+		$this->navigate("https://m.facebook.com/");
 		$html = $this->getSource();
 
 		// send info to the view
 		$response = new Response();
 		$response->setResponseSubject("Su web {$request->query}");
-		$response->createFromTemplate("basic.tpl", ["body" => $html, "url" => $url]);
+		$response->createFromTemplate("basic.tpl", ["body"=>$html]);
 		return $response;
 	}
 

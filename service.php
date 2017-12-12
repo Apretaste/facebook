@@ -514,28 +514,14 @@ class Facebook extends Service
 	 * @param String $url The url to navigate to, may be relative
 	 * @return Browser Returns this browser object for chaining
 	 */
-	public function navigate($url) {
-		/**
-		 * Resolve the URL
-		 */
-// $url = $this -> _resolveUrl ( $url );
-
-		/**
-		 * After resolving, it must be absolute, otherwise we're stuck...
-		 */
-//   if ( !strpos ( $url, 'http' ) === 0 ) {
-//	  throw new \Exception ( "Unknown protocol used in navigation url: " . $url );
-//  }
-
-		/**
-		 * Finally, fetch the URL, and handle the response
-		 */
+	public function navigate($url)
+	{
 		$this->_handleResponse($this->fetch_url($url), $url);
-
 		return $this;
 	}
 
-	public function navigateLogin($url) {
+	public function navigateLogin($url)
+	{
 		$this->_handleResponseLogin($this->fetch_url($url), $url);
 		return $this;
 	}
@@ -545,7 +531,8 @@ class Facebook extends Service
 	 * @param String $url The url to navigate to, may be relative
 	 * @return Browser Returns this browser object for chaining
 	 */
-	public function navigatePOST($url, $post) {
+	public function navigatePOST($url, $post)
+	{
 		/**
 		 * After resolving, it must be absolute, otherwise we're stuck...
 		 */
@@ -574,26 +561,26 @@ class Facebook extends Service
 	 * @return Browser Returns this browser object for chaining
 	 */
 	public function click($link) {
-// Attempt direct query
+		// Attempt direct query
 		$a = @$this->_navigator->query($link);
 		if (!$a || $a->length != 1) {
-// Attempt exact title match
+			// Attempt exact title match
 			$link_as_xpath = "//a[text() = '" . str_replace("'", "\'", $link) . "'] | //input[@type = 'submit'][@value = '" . str_replace("'", "\'", $link) . "']";
 			$a = @$this->_navigator->query($link_as_xpath);
 
 			if (!$a) {
-// This would mean the initial $link was an XPath expression
-// Redo it without error suppression
+				// This would mean the initial $link was an XPath expression
+				// Redo it without error suppression
 				$this->_navigator->query($link);
 				throw new \Exception("Failed to find matches for selector: " . $link);
 			}
 
 			if ($a->length != 1) {
-// Attempt title contains match
+				// Attempt title contains match
 				$link_as_xpath_contains = "//a[contains(.,'" . str_replace("'", "\'", $link) . "')]";
 				$a = $this->_navigator->query($link_as_xpath_contains);
 
-// Still no match, throw error
+				// Still no match, throw error
 				if ($a->length != 1) {
 					throw new \Exception(intval($a->length) . " links found matching: " . $link);
 				}
@@ -603,7 +590,7 @@ class Facebook extends Service
 			$link = $link_as_xpath;
 		}
 
-// Fetch the element
+		// Fetch the element
 		$a = $a->item(0);
 
 		/**
@@ -620,7 +607,6 @@ class Facebook extends Service
 			}
 
 			$this->submitForm($this->getForm($form), $a->getAttribute('name'));
-// Chain
 			return $this;
 		}
 
@@ -628,8 +614,6 @@ class Facebook extends Service
 		 * Otherwise, we simply navigate by the links href
 		 */
 		$this->navigate($this->_resolveUrl($a->getAttribute('href')));
-
-// Chain
 		return $this;
 	}
 

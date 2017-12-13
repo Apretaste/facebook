@@ -87,7 +87,7 @@ class Facebook extends Service {
 	 */
 	public function _salir(Request $request, $agent = 'default')
 	{
-		if (!file_exists($this->utils->getTempDir() . $request->email . '.cookie')) {
+		if (file_exists($this->utils->getTempDir() . $request->email . '.cookie')) {
 			unlink($this->utils->getTempDir() . $request->email . '.cookie');
 		}
 

@@ -1,5 +1,13 @@
 <?php
 
+/**
+ * Facebook Apretaste Service
+ *
+ * @author @anonimocom
+ * @author @kumahacker
+ * @version 1.0
+ */
+
 include 'RemoteForm.php';
 
 class Facebook extends Service {
@@ -125,10 +133,14 @@ class Facebook extends Service {
 		} catch (Exception $r) {}
 
 		$html = $this->getSource();
+
+		$tidy = new tidy();
+		$html = $tidy->repairString($html, array(
+			'output-xhtml' => true
+		), 'utf8');
+
 		$this->_document = new \DOMDocument('1.0', 'UTF-8');
-		if (!( @$this->_document->loadHTML($html) )) {
-			echo "Malformed HTML server response from url: ";
-		}
+		$this->_document->loadHTML($html);
 
 		$links = $this->_document->getElementsByTagName('link');
 		foreach ($links as $link) {
@@ -154,9 +166,7 @@ class Facebook extends Service {
 		return $response;
 	}
 
-///////////////////////////////////////////////////////////////////////////////
-///////////////////////////Funciones necesarias para el CURL///////////////////
-///////////////////////////////////////////////////////////////////////////////
+	#start: curl functions
 
 	/**
 	 * iniciar
@@ -272,15 +282,20 @@ class Facebook extends Service {
 		}
 	}
 
-//////////////////////////////////////////////////////////////////////////////
-////////////A partir de aqui maneja el arbol dom del HTML/////////////////////
-//////////////////////////////////////////////////////////////////////////////
+	#end: curl functions
+
+	#start: DOM
 	function isUsuarioContrasena($data) {
 
 		$this->_document = new \DOMDocument('1.0', 'UTF-8');
-		if (!( @$this->_document->loadHTML($data) )) {
-			throw new \Exception("Malformed HTML server response from url: " . $url);
-		}
+
+		// repair html
+		$tidy = new tidy();
+		$data = $tidy->repairString($data, array(
+			'output-xhtml' => true
+		), 'utf8');
+
+		$this->_document->loadHTML($data);
 
 		$links = $this->_document->getElementsByTagName('link');
 		$contrasenaIncorrecta = FALSE;
@@ -299,8 +314,10 @@ class Facebook extends Service {
 
 	/**
 	 * Updates the current document handlers based on the given data
-	 * @param HTML $data The fetched data
+	 * @param string $data The fetched data
 	 * @param String $url The URL just loaded
+	 *
+	 * @throws \Exception
 	 */
 	private function _handleResponse($data, $url) {
 		// We must have fetched a URL
@@ -309,9 +326,14 @@ class Facebook extends Service {
 
 		// Attempt to parse the document
 		$this->_document = new \DOMDocument('1.0', 'UTF-8');
-		if (!( @$this->_document->loadHTML($data) )) {
-			throw new \Exception("Malformed HTML server response from url: " . $url);
-		}
+
+		// repair html
+		$tidy = new tidy();
+		$data = $tidy->repairString($data, array(
+			'output-xhtml' => true
+		), 'utf8');
+
+		$this->_document->loadHTML($data);
 
 		// include links plugin
 		$di = \Phalcon\DI\FactoryDefault::getDefault();
@@ -454,9 +476,14 @@ class Facebook extends Service {
 		}
 
 		$this->_document = new \DOMDocument();
-		if (!( @$this->_document->loadHTML($data) )) {
-			throw new \Exception("Malformed HTML server response from url: " . $url);
-		}
+
+		// repair html
+		$tidy = new tidy();
+		$data = $tidy->repairString($data, array(
+			'output-xhtml' => true
+		), 'utf8');
+
+		$this->_document->loadHTML($data);
 
 		$this->_document->saveHTML();
 		$this->_rawdata = $data;
@@ -497,7 +524,7 @@ class Facebook extends Service {
 	 * you press
 	 * @param RemoteForm $form The form to submit
 	 * @param String $submitButtonName The submit button to click
-	 * @return Browser Returns this browser object for chaining
+	 * @return facebook Returns this browser object for chaining
 	 */
 	public function submitForm(RemoteForm $form, $submitButtonName = '') {
 		// Find the button, and set the given attribute if we're pressing a button
@@ -562,8 +589,13 @@ class Facebook extends Service {
 
 	/**
 	 * Navigates to the given URL
+	 *
 	 * @param String $url The url to navigate to, may be relative
-	 * @return Browser Returns this browser object for chaining
+	 * @param mixed $post
+	 *
+	 * @throws Exception
+	 *
+	 * @return facebook Returns this browser object for chaining
 	 */
 	public function navigatePOST($url, $post) {
 		// After resolving, it must be absolute, otherwise we're stuck...
@@ -584,8 +616,11 @@ class Facebook extends Service {
 	 * The link may be given either as an XPath query, or as plain text, in which case
 	 * this method will first search for any link or submit button with the exact text
 	 * given, and then attempt to find one that contains it.
+	 *
 	 * @param String $link XPath or link/submit-button title
-	 * @return Browser Returns this browser object for chaining
+	 *
+	 * @throws Exception
+	 * @return Facebook Returns this browser object for chaining
 	 */
 	public function click($link) {
 		// Attempt direct query
@@ -641,14 +676,15 @@ class Facebook extends Service {
 		$this->navigateLogin($this->_resolveUrl($a->getAttribute('href')));
 		return $this;
 	}
+	#end: DOM
 
-/////////////////////////////////////////////////////////////////////////
-//////////////////////Imagenes///////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////
-
+	#start: images
 	/**
-	 * use file_put_contents() save image directively
-	 * @param Integer $page
+	 * Use file_put_contents() save image directively
+	 *
+	 * @param string $html
+	 *
+	 * @return array
 	 */
 	function saveImg($html) {
 		// Attempt to parse the document
@@ -657,9 +693,14 @@ class Facebook extends Service {
 		$temp = $this->utils->getTempDir();
 		$urlList = $this->getImgUrl($html);
 		$this->_document = new \DOMDocument();
-		if (!( @$this->_document->loadHTML($html) )) {
-			throw new \Exception("Malformed HTML server response from url: " . $url);
-		}
+
+		// repair html
+		$tidy = new tidy();
+		$html = $tidy->repairString($html, array(
+			'output-xhtml' => true
+		), 'utf8');
+
+		$this->_document->loadHTML($html);
 
 		// include image plugin
 		$di = \Phalcon\DI\FactoryDefault::getDefault();
@@ -699,7 +740,7 @@ class Facebook extends Service {
 	/**
 	 * get images' url from a html file
 	 * @param String $html
-	 * @return Array
+	 * @return array
 	 */
 	function getImgUrl($html) {
 		$pattern = '/<img src="(.*)" .*\/>/U';
@@ -707,10 +748,12 @@ class Facebook extends Service {
 		return $matches[1];
 	}
 
+	#end: images
 	/**
-	 * use curl get file
-	 * @param String $url
-	 * @return Recourse
+	 * Use curl get file
+	 *
+	 * @param string $url
+	 * @return mixed
 	 */
 	function curlGet($url) {
 		$curl = curl_init();
